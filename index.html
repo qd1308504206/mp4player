@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .player-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .main-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 14px 28px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .step-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .step-input {
+            width: 120px;
+            padding: 10px 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .step-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .step-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .step-input::-webkit-inner-spin-button,
+        .step-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .step-input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .time-display {
+            color: white;
+            font-size: 18px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .instructions {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <div class="video-wrapper">
+            <video id="videoPlayer" controls></video>
+        </div>
+
+        <div class="controls">
+            <div class="main-controls">
+                <label for="videoFile" class="file-label">选择文件</label>
+                <input type="file" id="videoFile" accept="video/mp4,video/*">
+                <button id="playBtn" class="play-btn">播放</button>
+            </div>
+
+            <div class="step-controls">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="enableStep" checked>
+                    <span>自定义步长</span>
+                </label>
+                <input type="number" id="stepInput" class="step-input" value="5" min="0.001" step="0.001" placeholder="5">
+                <span style="color: white; font-size: 14px;">秒</span>
+                <button id="backBtn" class="nav-btn">◀ 后退</button>
+                <button id="forwardBtn" class="nav-btn">前进 ▶</button>
+            </div>
+        </div>
+
+        <div class="time-display">
+            <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+        </div>
+
+        <div class="instructions">
+            使用 ← → 方向键前进/后退，步长由上方设置控制
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const playBtn = document.getElementById('playBtn');
+        const backBtn = document.getElementById('backBtn');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const stepInput = document.getElementById('stepInput');
+        const enableStep = document.getElementById('enableStep');
+        const videoFile = document.getElementById('videoFile');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 100);
+            return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+        }
+
+        function getStepSize() {
+            return enableStep.checked ? parseFloat(stepInput.value) || 5 : 5;
+        }
+
+        video.addEventListener('loadedmetadata', () => {
+            durationEl.textContent = formatTime(video.duration);
+        });
+
+        video.addEventListener('timeupdate', () => {
+            currentTimeEl.textContent = formatTime(video.currentTime);
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                playBtn.textContent = '暂停';
+            } else {
+                video.pause();
+                playBtn.textContent = '播放';
+            }
+        });
+
+        video.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                playBtn.textContent = '暂停';
+            } else {
+                video.pause();
+                playBtn.textContent = '播放';
+            }
+        });
+
+        video.addEventListener('play', () => {
+            playBtn.textContent = '暂停';
+        });
+
+        video.addEventListener('pause', () => {
+            playBtn.textContent = '播放';
+        });
+
+        video.addEventListener('ended', () => {
+            playBtn.textContent = '播放';
+        });
+
+        backBtn.addEventListener('click', () => {
+            const step = getStepSize();
+            video.currentTime = Math.max(0, video.currentTime - step);
+        });
+
+        forwardBtn.addEventListener('click', () => {
+            const step = getStepSize();
+            video.currentTime = Math.min(video.duration, video.currentTime + step);
+        });
+
+        stepInput.addEventListener('input', () => {
+            if (stepInput.value <= 0) stepInput.value = 0.001;
+            if (stepInput.value > 600) stepInput.value = 600;
+        });
+
+        enableStep.addEventListener('change', () => {
+            stepInput.disabled = !enableStep.checked;
+        });
+
+        videoFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                video.src = url;
+                playBtn.textContent = '播放';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const step = getStepSize();
+                video.currentTime = Math.max(0, video.currentTime - step);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const step = getStepSize();
+                video.currentTime = Math.min(video.duration, video.currentTime + step);
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                if (video.paused) {
+                    video.play();
+                    playBtn.textContent = '暂停';
+                } else {
+                    video.pause();
+                    playBtn.textContent = '播放';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
